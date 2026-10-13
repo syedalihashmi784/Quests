@@ -10,33 +10,33 @@ const PORT = 1337;
 
 async function startChat(){
 
-    //creating user interface 
-    const rl = readlinePromises.createInterface({ 
-        input: process.stdin, 
+    //creating user interface
+    const rl = readlinePromises.createInterface({
+        input: process.stdin,
         output: process.stdout,
         prompt: '>'
     });
 
-    //Open TCP connection 
+    //Open TCP connection
     const client = await new Promise((resolve,reject) =>{
-        //capture the sockect to return value 
-        const sock = net.createConnection( 
+        //capture the sockect to return value
+        const sock = net.createConnection(
         {
             port: PORT,
             host: HOST,
         },
         ()=>{
             console.log("Connected to the server");
-            //resolve the socket 
+            //resolve the socket
             resolve(sock);
         });
         sock.on('error', reject);
     });
 
-    
-    //event listener 
+
+    //event listener
     client.on('data', (data) => {
-        //avoids race condition between server and client 
+        //avoids race condition between server and client
         readline.clearLine(process.stdout, 0);   // 1
         readline.cursorTo(process.stdout, 0);    // 2
         console.log(data.toString().trim());     // 3
@@ -44,19 +44,30 @@ async function startChat(){
     });
 
 
-    // Get username 
+    // Get username
     const username = await rl.question('Enter username: ');
     // Get Token
     const token = await rl.question('Enter Token: ');
 
-    //build Auth command 
+    //build AUTH command
     const authCommand = buildCommand(
         'AUTH',
         {User:username, Token:token, 'content-length':0},
         ''
     )
     client.write(authCommand);
-    console.log(authCommand);
+   
+    rl.on('line', (input) => {
+        const command = input.trim().toUpperCase();
+        //build JOIN command
+        if (command === 'JOIN') {
+            const joinCommand = buildCommand('JOIN', {'content-length': 0}, '');
+            client.write(joinCommand);
+        }
+
+        rl.prompt();
+    });
+
 
 }
 
@@ -72,10 +83,10 @@ function buildCommand(command, headers, body){
         //{users: '', token: ''}
         const header = `${key}:${headers[key]}`;
         headerline.push(header);
-        
+
     }
     return `${startline}\r\n${headerline.join('\r\n')}\r\n\r\n${body}`
 }
 
-//call function 
+//call function
 startChat()
